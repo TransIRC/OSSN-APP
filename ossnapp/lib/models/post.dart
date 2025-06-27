@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
+import 'comment.dart'; // <-- Add this import
 
 class Post {
   final String id;
@@ -10,6 +11,8 @@ class Post {
   final DateTime timestamp;
   final int likeCount;
   final bool isLikedByUser;
+  final List<Comment>? comments;      // <-- Add this
+  final int commentCount;             // <-- Add this
 
   Post({
     required this.id,
@@ -20,6 +23,8 @@ class Post {
     required this.timestamp,
     this.likeCount = 0,
     this.isLikedByUser = false,
+    this.comments,                    // <-- Add this
+    this.commentCount = 0,            // <-- Add this
   });
 
   /// Factory constructor to create a Post from the JSON structure
@@ -92,6 +97,21 @@ class Post {
         isLikedByUser = ilbu == '1' || ilbu.toLowerCase() == 'true';
       }
 
+      // ------ NEW: Parse comments & comment count ------
+      List<Comment>? comments;
+      int commentCount = 0;
+      if (postData['comments'] is List) {
+        comments = (postData['comments'] as List)
+            .map((commentJson) => Comment.fromJson(commentJson))
+            .toList();
+      }
+      if (postData['total_comments'] is int) {
+        commentCount = postData['total_comments'];
+      } else if (postData['total_comments'] is String) {
+        commentCount = int.tryParse(postData['total_comments']) ?? 0;
+      }
+      // ------ END NEW ------
+
       return Post(
         id: id,
         userName: userName,
@@ -101,6 +121,8 @@ class Post {
         timestamp: timestamp,
         likeCount: likeCount,
         isLikedByUser: isLikedByUser,
+        comments: comments,              // <-- Add this
+        commentCount: commentCount,      // <-- Add this
       );
     } catch (e) {
       debugPrint('Error parsing post: $e \nJSON: $json');
