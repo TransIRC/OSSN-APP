@@ -1,5 +1,3 @@
-// lib/models/post.dart
-
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
@@ -10,6 +8,8 @@ class Post {
   final String content;
   final String? imageUrl;
   final DateTime timestamp;
+  final int likeCount;
+  final bool isLikedByUser;
 
   Post({
     required this.id,
@@ -18,6 +18,8 @@ class Post {
     required this.content,
     this.imageUrl,
     required this.timestamp,
+    this.likeCount = 0,
+    this.isLikedByUser = false,
   });
 
   /// Factory constructor to create a Post from the JSON structure
@@ -72,6 +74,24 @@ class Post {
       // Safely get the post ID
       final id = postData['guid']?.toString() ?? DateTime.now().toIso8601String();
 
+      // Get like count and like state
+      int likeCount = 0;
+      if (postData['total_likes'] is int) {
+        likeCount = postData['total_likes'];
+      } else if (postData['total_likes'] is String) {
+        likeCount = int.tryParse(postData['total_likes']) ?? 0;
+      }
+      // isLikedByUser can be bool, int, or string
+      bool isLikedByUser = false;
+      final ilbu = postData['is_liked_by_user'];
+      if (ilbu is bool) {
+        isLikedByUser = ilbu;
+      } else if (ilbu is int) {
+        isLikedByUser = ilbu == 1;
+      } else if (ilbu is String) {
+        isLikedByUser = ilbu == '1' || ilbu.toLowerCase() == 'true';
+      }
+
       return Post(
         id: id,
         userName: userName,
@@ -79,6 +99,8 @@ class Post {
         content: finalContent,
         imageUrl: (imageUrl != null && imageUrl.isNotEmpty) ? imageUrl : null,
         timestamp: timestamp,
+        likeCount: likeCount,
+        isLikedByUser: isLikedByUser,
       );
     } catch (e) {
       debugPrint('Error parsing post: $e \nJSON: $json');

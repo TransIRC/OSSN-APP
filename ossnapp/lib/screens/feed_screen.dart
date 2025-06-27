@@ -1,18 +1,22 @@
-// lib/screens/feed_screen.dart
-
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 
 import '../widgets/post_card.dart';
 import '../widgets/post_box.dart';
+import '../models/feed_mode.dart';
 import '../models/post.dart';
 import '../config.dart';
 
 class FeedScreen extends StatefulWidget {
   final Map<String, dynamic> authPayload;
+  final FeedMode mode;
 
-  const FeedScreen({super.key, required this.authPayload});
+  const FeedScreen({
+    super.key,
+    required this.authPayload,
+    this.mode = FeedMode.user,
+  });
 
   @override
   State<FeedScreen> createState() => _FeedScreenState();
@@ -33,21 +37,33 @@ class _FeedScreenState extends State<FeedScreen> {
     final userGuid = widget.authPayload['guid'];
     final String? cookie = widget.authPayload['cookie'];
 
-    if (userGuid == null) {
-      setState(() {
-        _isLoading = false;
-        _errorMessage = "Could not fetch posts: User ID is missing.";
-      });
-      return;
-    }
-
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
 
     try {
-      final url = Uri.parse("${AppConfig.apiUrl}/wall_list_user");
+      Uri url;
+      Map<String, String> body;
+
+      if (widget.mode == FeedMode.community) {
+        url = Uri.parse("${AppConfig.apiUrl}/wall_list_home");
+        body = {
+          "api_key_token": AppConfig.apiKey,
+          "guid": userGuid.toString(),
+          "offset": "1",
+          "count": "10",
+        };
+      } else {
+        url = Uri.parse("${AppConfig.apiUrl}/wall_list_user");
+        body = {
+          "api_key_token": AppConfig.apiKey,
+          "uguid": userGuid.toString(),
+          "guid": userGuid.toString(),
+          "offset": "1",
+          "count": "10",
+        };
+      }
 
       final Map<String, String> headers = {};
       if (cookie != null) {
@@ -57,15 +73,7 @@ class _FeedScreenState extends State<FeedScreen> {
       final response = await http.post(
         url,
         headers: headers,
-        body: {
-          "api_key_token": AppConfig.apiKey,
-          "uguid": userGuid.toString(),
-          "guid": userGuid.toString(),
-          // CORRECTED: The API expects a 1-based offset for pagination.
-          // Sending "1" for the first page will prevent the SQL error.
-          "offset": "1",
-          "count": "10",
-        },
+        body: body,
       );
 
       final contentType = response.headers['content-type'];
@@ -120,22 +128,36 @@ class _FeedScreenState extends State<FeedScreen> {
 
     if (_posts.isEmpty) {
       return ListView(
-        children: const [
-          PostBox(),
-          SizedBox(height: 50),
-          Center(child: Text("Your news feed is empty.", style: TextStyle(fontSize: 16, color: Colors.grey))),
+        children: [
+          if (widget.mode != FeedMode.community)
+            PostBox(
+              authPayload: widget.authPayload,
+              onPostSuccess: _fetchWallPosts,
+            ),
+          const SizedBox(height: 50),
+          Center(
+            child: Text(
+              widget.mode == FeedMode.community
+                  ? "No public posts found."
+                  : "Your news feed is empty.",
+              style: const TextStyle(fontSize: 16, color: Colors.grey),
+            ),
+          ),
         ],
       );
     }
 
     return ListView.builder(
-      itemCount: _posts.length + 1,
+      itemCount: _posts.length + (widget.mode == FeedMode.community ? 0 : 1),
       itemBuilder: (context, index) {
-        if (index == 0) {
-          return const PostBox();
+        if (widget.mode != FeedMode.community && index == 0) {
+          return PostBox(
+            authPayload: widget.authPayload,
+            onPostSuccess: _fetchWallPosts,
+          );
         }
-        final post = _posts[index - 1];
-        return PostCard(post: post);
+        final post = _posts[index - (widget.mode == FeedMode.community ? 0 : 1)];
+        return PostCard(post: post, authPayload: widget.authPayload);
       },
     );
   }

@@ -1,8 +1,7 @@
-// lib/main.dart
-
 import 'package:flutter/material.dart';
 import 'screens/feed_screen.dart';
 import 'screens/login_screen.dart';
+import 'models/feed_mode.dart';
 
 void main() {
   runApp(const FlutterSocialApp());
@@ -14,7 +13,7 @@ class FlutterSocialApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
-      title: 'SOCIAL.TRANSIRC.CHAT',
+      title: 'OSSN Android',
       theme: ThemeData(
         primaryColor: const Color(0xFF00AEEF),
         scaffoldBackgroundColor: const Color(0xFFF4F4F4),
@@ -53,6 +52,7 @@ class _SocialHomeState extends State<SocialHome>
   late final Animation<double> _sidebarAnimation;
 
   Map<String, dynamic>? _authPayload;
+  FeedMode _currentFeedMode = FeedMode.user;
 
   @override
   void initState() {
@@ -88,6 +88,14 @@ class _SocialHomeState extends State<SocialHome>
     });
   }
 
+  void _switchFeed(FeedMode mode) {
+    setState(() {
+      _currentFeedMode = mode;
+      _sidebarOpen = false;
+      _controller.reverse();
+    });
+  }
+
   @override
   void dispose() {
     _controller.dispose();
@@ -95,7 +103,6 @@ class _SocialHomeState extends State<SocialHome>
   }
 
   Widget _buildSidebar() {
-    // CORRECTED: Use the correct keys from user_authenticate.md documentation
     final userName = _authPayload?['fullname']?.toString() ?? 'Guest User';
     final iconData = _authPayload?['icon'];
     final userAvatarUrl = (iconData is Map) ? iconData['small'] as String? : null;
@@ -132,7 +139,11 @@ class _SocialHomeState extends State<SocialHome>
                       style: TextStyle(color: Colors.white70)),
                 ),
                 const Divider(color: Colors.white24),
-                _SidebarNavItem(icon: Icons.rss_feed, label: 'News Feed'),
+                _SidebarNavItem(
+                  icon: Icons.rss_feed,
+                  label: 'News Feed',
+                  onTap: () => _switchFeed(FeedMode.community),
+                ),
                 _SidebarNavItem(icon: Icons.people, label: 'Friends'),
                 _SidebarNavItem(icon: Icons.photo, label: 'Photos'),
                 _SidebarNavItem(icon: Icons.notifications, label: 'Notifications'),
@@ -198,7 +209,7 @@ class _SocialHomeState extends State<SocialHome>
                             ),
                             const SizedBox(width: 4),
                             const Text(
-                              'SOCIAL.TRANSIRC.CHAT',
+                              'OSSN Android',
                               style: TextStyle(
                                   color: Colors.white,
                                   fontWeight: FontWeight.bold,
@@ -222,7 +233,10 @@ class _SocialHomeState extends State<SocialHome>
                       ),
                       Expanded(
                         child: _authPayload != null
-                            ? FeedScreen(authPayload: _authPayload!)
+                            ? FeedScreen(
+                                authPayload: _authPayload!,
+                                mode: _currentFeedMode,
+                              )
                             : const Center(child: CircularProgressIndicator()),
                       ),
                     ],
@@ -242,15 +256,16 @@ class _SocialHomeState extends State<SocialHome>
 class _SidebarNavItem extends StatelessWidget {
   final IconData icon;
   final String label;
+  final VoidCallback? onTap;
 
-  const _SidebarNavItem({required this.icon, required this.label});
+  const _SidebarNavItem({required this.icon, required this.label, this.onTap});
 
   @override
   Widget build(BuildContext context) {
     return ListTile(
       leading: Icon(icon, color: Colors.white),
       title: Text(label, style: const TextStyle(color: Colors.white)),
-      onTap: () {},
+      onTap: onTap,
     );
   }
 }
